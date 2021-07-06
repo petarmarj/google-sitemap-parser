@@ -1,21 +1,21 @@
-<?php namespace tzfrs;
+<?php
+
+namespace petarmarj;
 
 use SimpleXMLElement;
-use jyggen\Curl;
-use jyggen\Curl\Request;
-use tzfrs\Exceptions\GoogleSitemapParserException;
+use Curl\Curl;
+use petarmarj\Exceptions\GoogleSitemapParserException;
 
 /**
  * Class GoogleSitemapParser
- * @package tzfrs
- * @version 1.0.1
+ * @package petarmarj (forked from tzfrs)
+ * @version 1.0.2
  * @license MIT License
  *
  * This is the class that handles the parsing of the sitemap
  */
 class GoogleSitemapParser
 {
-
     /**
      * The URL that will be parsed
      * @var null|string
@@ -66,12 +66,12 @@ class GoogleSitemapParser
         if (isset($matches[1])) {
             foreach ($matches[1] as $sitemap) {
                 if (substr($sitemap, -3) === "xml") {
-                    foreach ($this->parse($sitemap) as $key=>$subPost) {
-                        yield $key=>$subPost;
+                    foreach ($this->parse($sitemap) as $key => $subPost) {
+                        yield $key => $subPost;
                     }
                 } elseif (substr($sitemap, -6) === 'xml.gz') {
-                    foreach ($this->parseFromXMLString($this->downloadAndExtractGZIP($sitemap)) as $key=>$subPost) {
-                        yield $key=>$subPost;
+                    foreach ($this->parseFromXMLString($this->downloadAndExtractGZIP($sitemap)) as $key => $subPost) {
+                        yield $key => $subPost;
                     }
                 }
             }
@@ -128,8 +128,8 @@ class GoogleSitemapParser
     public function parseCompressed($url = null)
     {
         $url = ($url === null) ? $this->url : $url;
-        foreach ($this->parseFromXMLString($this->downloadAndExtractGZIP($url)) as $key=>$subPost) {
-            yield $key=>$subPost;
+        foreach ($this->parseFromXMLString($this->downloadAndExtractGZIP($url)) as $key => $subPost) {
+            yield $key => $subPost;
         }
     }
 
@@ -153,21 +153,22 @@ class GoogleSitemapParser
     /**
      * @param string $url The URL of the gzip
      * @return string the uncompressed downloaded content
-     * @throws Curl\Exception\ProtectedOptionException
+     * @throws RuntimeException
      * @throws GoogleSitemapParserException
      */
     protected function downloadAndExtractGZIP($url)
     {
         try {
-            $request = new Request($url);
-            $request->setOption(CURLOPT_ENCODING, '');
-            $request->execute();
-            /** @var \Symfony\Component\HttpFoundation\Response $response */
-            $response = $request->getResponse();
-            return $response->headers->get('Content-Type') === 'application/xml'
+            $curl = new Curl();
+            $curl->setOpt(CURLOPT_ENCODING, true);
+            $curl->get($url);
+
+            $response = $curl->response;
+
+            return $response->response_headers->get('Content-Type') === 'application/xml'
                 ? $response->getContent()
                 : gzdecode($response->getContent());
-        } catch (Curl\Exception\CurlErrorException $e) {
+        } catch (\RuntimeException $e) {
             throw new GoogleSitemapParserException($e->getMessage());
         }
     }
@@ -184,12 +185,14 @@ class GoogleSitemapParser
         if (!filter_var($url, FILTER_VALIDATE_URL)) {
             throw new GoogleSitemapParserException('Passed URL not valid according to filter_var function');
         }
-        /** @var \Symfony\Component\HttpFoundation\Response $response */
-        $response = Curl::get($url)[0];
-        if ($response->getStatusCode() < 200 || $response->getStatusCode() >= 400) {
-            throw new GoogleSitemapParserException('The server responds with a bad status code: '. $response->getStatusCode());
+
+        $curl = new Curl();
+        $curl->get($url);
+
+        if ($curl->error_code !== 0 && $curl->error_code < 200 || $curl->error_code >= 400) {
+            throw new GoogleSitemapParserException('The server responds with a bad status code: ' . $curl->error_code);
         }
-        return $response->getContent();
+        return $curl->response;
     }
 
     /**

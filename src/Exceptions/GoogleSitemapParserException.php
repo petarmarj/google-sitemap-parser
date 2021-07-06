@@ -1,11 +1,13 @@
-<?php namespace tzfrs\Exceptions;
+<?php
+
+namespace petarmarj\Exceptions;
 
 use Exception;
 
 /**
  * Class GoogleSitemapParserException
- * @package tzfrs\Exceptions
- * @version 1.0.1
+ * @package petarmarj\Exceptions
+ * @version 1.0.2
  * @license MIT License
  */
 class GoogleSitemapParserException extends Exception
